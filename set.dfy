@@ -17,22 +17,29 @@ method Main() {
 }
 
 class IntSet {
-  ghost var contents: seq<int>
+  ghost var content: seq<int>
   ghost var size: nat
+  
+  var concreteContent: array<int>
+  var concreteSize: nat
 
   constructor ()
     ensures Valid()
   {
-    contents := [];
+    concreteContent := new int[0];
+    concreteSize := 0;
+    content := [];
     size := 0;
   }
 
   ghost predicate Valid()
     reads this
+    reads concreteContent
   {
-    && (forall x :: x in contents ==> !(exists y :: y in contents && x != y))
-    && size == |contents|
-    && concreteContents[..] == contents
+    && (forall i, j :: (0 <= i < |content| && 0 <= j < |content| && i != j) ==> (content[i] != content[j]))
+    && size == |content|
+    && size == concreteSize
+    && concreteContent[..] == content
   }
 
   method Add(x: int)
@@ -41,27 +48,86 @@ class IntSet {
     ensures Valid()
     ensures Contains(x)
   {
-    if (x in concreteContents[..])
+    if (x in concreteContent[..])
     {
       return;
     }
-    contents := contents + [x];
-    size := size + 1;
-    contents := concreteContents[..];
+
+    var newContent := new int[concreteSize + 1];
+    forall i | 0 <= i < concreteSize {
+      newContent[i] := concreteContent[i];
+    }
+    
+    newContent[concreteSize] := x;
+
+    concreteContent := newContent;
+    concreteSize := concreteContent.Length;
+    content := concreteContent[..];
+    size := |content|;
+  }
+
+  method RemoveIfPresent(x: int)
+    modifies this
+    requires Valid()
+    ensures Valid()
+    ensures !Contains(x)
+  {
+
+    if !Contains(x)
+    {
+      return;
+    }
+
+    var newArr := new int[concreteSize - 1];
+    var j := 0;
+
+    for i := 0 to concreteSize - 1
+      invariant 0 <= j < concreteSize - 1
+      invariant 0 <= j <= i < concreteSize
+      invariant forall k :: 0 <= k < j ==> newArr[k] != x
+     {
+        if concreteContent[i] != x {
+            newArr[j] := concreteContent[i];
+            j := j + 1;
+        }
+    }
+
+    concreteContent := newArr;
+    concreteSize := concreteSize - 1;
+
+    content := concreteContent[..];
+    size := size - 1;
+  }
+
+  function Contains(x: int): bool
+    reads this
+    reads concreteContent
+    requires Valid()
+    ensures Valid()
+    ensures Contains(x) ==> x in content && !IsEmpty()
+    ensures !Contains(x) ==> x !in content
+  {
+    x in concreteContent[..]
   }
 
   function Size(): nat
     reads this
+    reads concreteContent
+    requires Valid()
+    ensures Valid()
     ensures Size() == size
   {
-    concreteContents.Length
+    concreteSize
   } 
 
   function IsEmpty(): bool
     reads this
+    reads concreteContent
+    requires Valid()
+    ensures Valid()
     ensures IsEmpty() == (size == 0)
   {
-    concreteContents.Length == 0
+    concreteSize == 0
   }
 
   method Union(other: IntSet) returns (result: IntSet)
@@ -69,10 +135,10 @@ class IntSet {
     ensures Valid() && other.Valid()
     ensures forall x :: result.Contains(x) == Contains(x) || other.Contains(x)
   {
-    var newContentsontents := concreteContents[..] + other.concreteContents[..];
-    result.contents := newContentsontents;
+    var newContent := concreteContent[..] + other.concreteContent[..];
+    result.content := newContent;
     result := new IntSet();
-    result.contents := newContentsontents;
+    result.content := newContent;
   }
 
   method Intersection(other: IntSet) returns (result: IntSet)
@@ -81,40 +147,27 @@ class IntSet {
     ensures forall x :: result.Contains(x) == Contains(x) && other.Contains(x)
   {
     result := new IntSet();
-    var newContents: array<int> := new int[0];
-    for i := 0 to |concreteContents[..]|
-      invariant forall x :: x in newContents[..] ==> !(exists y :: y in concreteContents[..] && x != y)
+    var newContent: array<int> := new int[0];
+    for i := 0 to |concreteContent[..]|
+      invariant forall x :: x in newContent[..] ==> !(exists y :: y in concreteContent[..] && x != y)
     {
-      if (concreteContents[i] in other.concreteContents[..])
+      if (concreteContent[i] in other.concreteContent[..])
       {
-        newContents[newContents.Length] := concreteContents[i];
+        // newContent[newContent.Length] := concreteContent[i];
       }
     }
 
-    result.concreteContents := newContents;
+    result.concreteContent := newContent;
   }
 
-  method RemoveIfPresent(x: int)
-    modifies this
-    requires Valid()
-    ensures Valid()
-    ensures old(this).Contains(x) ==> !Contains(x)
-    ensures !Contains(x) ==> contents == old(contents)
+  method RemoveElementManual(sequence: seq<int>, elem: int) returns (newSeq: seq<int>)
   {
-    //Do something lol
-    size := size - 1;
-    contents := concreteContents[..];
+      newSeq := [];
+      for i := 0 to |sequence| {
+          if sequence[i] != elem {
+              newSeq := newSeq + [sequence[i]];
+          }
+      }
   }
 
-  function Contains(x: int): bool
-    reads this
-    requires Valid()
-    ensures Valid()
-    ensures Contains(x) ==> x in contents
-    ensures !Contains(x) ==> x !in contents
-  {
-    x in concreteContents[..]
-  }
-  
-  var concreteContents: array<int>
 }
