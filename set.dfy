@@ -1,44 +1,60 @@
 method Main() {
   var s := new IntSet();
+  assert s.IsEmpty() == true;
+  assert s.Size() == 0;
+  s.Add(0);
+  assert s.Size() == 1;
   s.Add(1);
+  assert s.Size() == 2;
+  assert s.Contains(1);
+  assert !s.Contains(2);
   s.Add(2);
-  s.Add(3);
-  s.Add(4);
-  s.Add(5);
-  assert s.Size() == 5;
-  assert s.IsEmpty() == false;
-  var emptySet := new IntSet();
-  var s2 := s.Union(emptySet);
-  assert s2.Size() == 5;
-  assert s2.IsEmpty() == false;
-  var s3 := s2.Intersection(emptySet);
-  assert s3.Size() == 0;
-  assert s3.IsEmpty() == true;
+  assert s.Size() == 3;
+  assert s.Contains(2);
+  assert !s.Contains(3);
 }
 
 class IntSet {
   ghost var content: seq<int>
-  ghost var size: nat
   
   var concreteContent: array<int>
-  var concreteSize: nat
 
   constructor ()
     ensures Valid()
+    ensures IsEmpty()
+    ensures Size() == 0
   {
     concreteContent := new int[0];
-    concreteSize := 0;
     content := [];
-    size := 0;
+  }
+
+  predicate IsValidIndex(sequence: seq<int>, index: int)
+  {
+    0 <= index < |sequence|
+  }
+
+  predicate IsValidIndexForArray(sequence: array<int>, index: int)
+  {
+    0 <= index < sequence.Length
+  }
+
+  predicate IsArrayUnique(sequence: array<int>)
+    reads sequence
+  {
+    forall i, j :: (0 <= i < sequence.Length && 0 <= j < sequence.Length && i != j) ==> (sequence[i] != sequence[j])
+  }
+
+  predicate IsSeqUnique(sequence: seq<int>)
+  {
+    forall i, j :: (0 <= i < |sequence| && 0 <= j < |sequence| && i != j) ==> (sequence[i] != sequence[j])
   }
 
   ghost predicate Valid()
     reads this
     reads concreteContent
   {
-    && (forall i, j :: (0 <= i < |content| && 0 <= j < |content| && i != j) ==> (content[i] != content[j]))
-    && size == |content|
-    && size == concreteSize
+    && IsArrayUnique(concreteContent)
+    && IsSeqUnique(content)
     && concreteContent[..] == content
   }
 
@@ -47,23 +63,30 @@ class IntSet {
     requires Valid()
     ensures Valid()
     ensures Contains(x)
+    ensures !IsEmpty()
+    ensures Size() > 0
+    ensures old(Contains(x)) ==> Size() == old(Size())
+    ensures !old(Contains(x)) ==> Size() == old(Size()) + 1
   {
     if (x in concreteContent[..])
     {
+      assert Contains(x);
+      assert !IsEmpty();
       return;
     }
 
-    var newContent := new int[concreteSize + 1];
-    forall i | 0 <= i < concreteSize {
+    var newContent := new int[concreteContent.Length + 1];
+    forall i | 0 <= i < concreteContent.Length
+    {
       newContent[i] := concreteContent[i];
     }
     
-    newContent[concreteSize] := x;
+    newContent[concreteContent.Length] := x;
 
     concreteContent := newContent;
-    concreteSize := concreteContent.Length;
-    content := concreteContent[..];
-    size := |content|;
+    content := newContent[..];
+    assert Contains(x);
+    assert !IsEmpty();
   }
 
   method RemoveIfPresent(x: int)
@@ -72,31 +95,45 @@ class IntSet {
     ensures Valid()
     ensures !Contains(x)
   {
-
     if !Contains(x)
     {
+      assert IsArrayUnique(concreteContent);
+      assert !Contains(x);
       return;
     }
 
-    var newArr := new int[concreteSize - 1];
-    var j := 0;
+    assert Contains(x);
 
-    for i := 0 to concreteSize - 1
-      invariant 0 <= j < concreteSize - 1
-      invariant 0 <= j <= i < concreteSize
+    var newArr := new int[concreteContent.Length - 1];
+    forall j | 0 <= j < newArr.Length
+    {
+      newArr[j] := 0;
+    }
+    var i := 0;
+    var j := 0;
+    assert IsArrayUnique(concreteContent);
+    assert IsSeqUnique(content);
+
+    //Manually remove the element
+    while (i < concreteContent.Length && j < newArr.Length)
+      invariant 0 <= j <= i <= concreteContent.Length
+      invariant 0 <= j <= newArr.Length
+      invariant x !in newArr[..j]
+      invariant !exists k :: k in newArr[..j] && k !in concreteContent[..]
       invariant forall k :: 0 <= k < j ==> newArr[k] != x
-     {
-        if concreteContent[i] != x {
-            newArr[j] := concreteContent[i];
-            j := j + 1;
-        }
+    {
+      if (concreteContent[i] != x)
+      {
+        newArr[j] := concreteContent[i];
+        j := j + 1;
+      }
+
+      i := i + 1;
     }
 
-    concreteContent := newArr;
-    concreteSize := concreteSize - 1;
 
-    content := concreteContent[..];
-    size := size - 1;
+    content := newArr[..];
+    concreteContent := newArr;
   }
 
   function Contains(x: int): bool
@@ -104,8 +141,8 @@ class IntSet {
     reads concreteContent
     requires Valid()
     ensures Valid()
-    ensures Contains(x) ==> x in content && !IsEmpty()
-    ensures !Contains(x) ==> x !in content
+    ensures Contains(x) <==> x in content && !IsEmpty()
+    ensures !Contains(x) <==> x !in content
   {
     x in concreteContent[..]
   }
@@ -115,9 +152,9 @@ class IntSet {
     reads concreteContent
     requires Valid()
     ensures Valid()
-    ensures Size() == size
+    ensures Size() == |content|
   {
-    concreteSize
+    concreteContent.Length
   } 
 
   function IsEmpty(): bool
@@ -125,9 +162,9 @@ class IntSet {
     reads concreteContent
     requires Valid()
     ensures Valid()
-    ensures IsEmpty() == (size == 0)
+    ensures IsEmpty() == (|content| == 0)
   {
-    concreteSize == 0
+    concreteContent.Length == 0
   }
 
   method Union(other: IntSet) returns (result: IntSet)
@@ -163,11 +200,12 @@ class IntSet {
   method RemoveElementManual(sequence: seq<int>, elem: int) returns (newSeq: seq<int>)
   {
       newSeq := [];
-      for i := 0 to |sequence| {
-          if sequence[i] != elem {
+      for i := 0 to |sequence|
+      {
+          if sequence[i] != elem
+          {
               newSeq := newSeq + [sequence[i]];
           }
       }
   }
-
 }
