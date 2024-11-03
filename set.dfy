@@ -5,9 +5,9 @@ method Main() {
   s.Add(0);
   assert s.Size() == 1;
   s.Add(1);
+  assert !s.Contains(2);
   assert s.Size() == 2;
   assert s.Contains(1);
-  assert !s.Contains(2);
   s.Add(2);
   assert s.Size() == 3;
   assert s.Contains(2);
@@ -23,6 +23,8 @@ class IntSet {
     ensures Valid()
     ensures IsEmpty()
     ensures Size() == 0
+    ensures content == []
+    ensures forall x :: !Contains(x)
   {
     concreteContent := new int[0];
     content := [];
@@ -65,8 +67,8 @@ class IntSet {
     ensures Contains(x)
     ensures !IsEmpty()
     ensures Size() > 0
-    ensures old(Contains(x)) ==> Size() == old(Size())
-    ensures !old(Contains(x)) ==> Size() == old(Size()) + 1
+    ensures old(Contains(x)) <==> Size() == old(Size())
+    ensures !old(Contains(x)) <==> Size() == old(Size()) + 1 && content == old(content) + [x]
   {
     if (x in concreteContent[..])
     {
@@ -141,8 +143,7 @@ class IntSet {
     reads concreteContent
     requires Valid()
     ensures Valid()
-    ensures Contains(x) <==> x in content && !IsEmpty()
-    ensures !Contains(x) <==> x !in content
+    ensures Contains(x) <==> x in content
   {
     x in concreteContent[..]
   }
@@ -162,7 +163,8 @@ class IntSet {
     reads concreteContent
     requires Valid()
     ensures Valid()
-    ensures IsEmpty() == (|content| == 0)
+    ensures IsEmpty() == (Size() == 0)
+    ensures IsEmpty() == (content == [])
   {
     concreteContent.Length == 0
   }
