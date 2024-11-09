@@ -40,12 +40,6 @@ class IntSet {
     0 <= index < sequence.Length
   }
 
-  predicate IsArrayUnique(sequence: array<int>)
-    reads sequence
-  {
-    forall i, j :: (0 <= i < sequence.Length && 0 <= j < sequence.Length && i != j) ==> (sequence[i] != sequence[j])
-  }
-
   predicate IsSeqUnique(sequence: seq<int>)
   {
     forall i, j :: (0 <= i < |sequence| && 0 <= j < |sequence| && i != j) ==> (sequence[i] != sequence[j])
@@ -55,8 +49,7 @@ class IntSet {
     reads this
     reads concreteContent
   {
-    && IsArrayUnique(concreteContent)
-    && IsSeqUnique(content)
+    && (forall i, j :: (0 <= i < |content| && 0 <= j < |content| && i != j) ==> (content[i] != content[j]))
     && concreteContent[..] == content
   }
 
@@ -91,52 +84,58 @@ class IntSet {
     assert !IsEmpty();
   }
 
-  method RemoveIfPresent(x: int)
-    modifies this
-    requires Valid()
-    ensures Valid()
-    ensures !Contains(x)
-  {
-    if !Contains(x)
-    {
-      assert IsArrayUnique(concreteContent);
-      assert !Contains(x);
-      return;
-    }
-
-    assert Contains(x);
-
-    var newArr := new int[concreteContent.Length - 1];
-    forall j | 0 <= j < newArr.Length
-    {
-      newArr[j] := 0;
-    }
-    var i := 0;
-    var j := 0;
-    assert IsArrayUnique(concreteContent);
-    assert IsSeqUnique(content);
-
-    //Manually remove the element
-    while (i < concreteContent.Length && j < newArr.Length)
-      invariant 0 <= j <= i <= concreteContent.Length
-      invariant 0 <= j <= newArr.Length
-      invariant x !in newArr[..j]
-      invariant !exists k :: k in newArr[..j] && k !in concreteContent[..]
-      invariant forall k :: 0 <= k < j ==> newArr[k] != x
-    {
-      if (concreteContent[i] != x)
-      {
-        newArr[j] := concreteContent[i];
-        j := j + 1;
-      }
-
-      i := i + 1;
-    }
-
-
-    content := newArr[..];
-    concreteContent := newArr;
+method RemoveIfPresent(x: int)
+  requires Valid()
+  requires forall i, j :: (0 <= i < concreteContent.Length && 0 <= j < concreteContent.Length && i != j) ==> concreteContent[i] != concreteContent[j]
+  ensures Valid()
+  ensures !old(Contains(x)) <==> old(content) == content
+  ensures forall i :: 0 <= i < |content| ==> content[i] in old(content)
+  ensures forall i :: 0 <= i < |content| ==> content[i] != x
+  ensures !Contains(x)
+  ensures forall p, q :: (0 <= p < concreteContent.Length && 0 <= q < concreteContent.Length && p != q) ==> concreteContent[p] != concreteContent[q]
+  modifies this
+  modifies this.concreteContent
+{
+  if !Contains(x) {
+    return;
   }
+
+  assert exists i :: 0 <= i < concreteContent.Length && concreteContent[i] == x && forall j :: 0 <= j < concreteContent.Length && j != i ==> concreteContent[j] != x;
+
+  assert concreteContent.Length > 0;
+
+  var i := 0;
+  var j := 0;
+  var removedIndex := 0;
+  var newContent := new int[concreteContent.Length - 1];
+
+  while i < concreteContent.Length
+    invariant 0 <= i <= concreteContent.Length
+    invariant forall p, q :: (0 <= p < concreteContent.Length && 0 <= q < concreteContent.Length && p != q) ==> concreteContent[p] != concreteContent[q]
+    invariant forall p, q :: (0 <= p < |content| && 0 <= q < |content| && p != q) ==> (content[p] != content[q])
+    modifies this.concreteContent
+    modifies newContent
+  {
+    if concreteContent[i] != x {
+      assert j == i;
+      newContent[j] := concreteContent[i];
+      j := j + 1;
+    }
+    else
+    {
+      assert !(exists k :: 0 <= k < concreteContent.Length && k != i && concreteContent[k] == x);
+    }
+
+    i := i + 1;
+  }
+
+  assert newContent.Length == concreteContent.Length - 1;
+  concreteContent := newContent;
+  content := concreteContent[..];
+  assert x !in newContent[..];
+  assert x !in content;
+  assert !Contains(x);
+}
 
   function Contains(x: int): bool
     reads this
