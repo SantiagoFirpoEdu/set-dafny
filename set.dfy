@@ -89,10 +89,10 @@ method RemoveIfPresent(x: int)
   ensures !Contains(x)
   ensures forall a :: a in old(content) && a != x ==> a in content
   ensures forall i, j :: (0 <= i < |content| && 0 <= j < |content| && i != j) ==> (content[i] != content[j])
-  modifies this
-  modifies this.concreteContent
   ensures old(Contains(x)) ==> old(concreteContent).Length == concreteContent.Length - 1
   ensures old(!Contains(x)) ==> old(concreteContent) == concreteContent
+  modifies this
+  modifies this.concreteContent
 {
   if !Contains(x) {
     return;
@@ -101,7 +101,6 @@ method RemoveIfPresent(x: int)
   var newContent := new int[concreteContent.Length - 1];
   var i := 0;
   var j := 0;
-  var occurences := 0;
 
   while i < concreteContent.Length
     invariant 0 <= i <= concreteContent.Length
@@ -117,10 +116,6 @@ method RemoveIfPresent(x: int)
       newContent[j] := concreteContent[i];
       assert !(exists k :: 0 <= k < concreteContent.Length && k != i && concreteContent[k] == concreteContent[i]);
       j := j + 1;
-    }
-    else
-    {
-      occurences := occurences + 1;
     }
 
     i := i + 1;
