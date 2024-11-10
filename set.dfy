@@ -59,8 +59,7 @@ class IntSet {
     ensures Valid()
     ensures Contains(x)
     ensures !IsEmpty()
-    ensures Size() > 0
-    ensures old(Contains(x)) <==> Size() == old(Size())
+    ensures old(Contains(x)) <==> Size() == old(Size()) && content == old(content)
     ensures !old(Contains(x)) <==> Size() == old(Size()) + 1 && content == old(content) + [x]
   {
     if (x in concreteContent[..])
@@ -86,55 +85,51 @@ class IntSet {
 
 method RemoveIfPresent(x: int)
   requires Valid()
-  requires forall i, j :: (0 <= i < concreteContent.Length && 0 <= j < concreteContent.Length && i != j) ==> concreteContent[i] != concreteContent[j]
   ensures Valid()
-  ensures !old(Contains(x)) <==> old(content) == content
-  ensures forall i :: 0 <= i < |content| ==> content[i] in old(content)
-  ensures forall i :: 0 <= i < |content| ==> content[i] != x
   ensures !Contains(x)
-  ensures forall p, q :: (0 <= p < concreteContent.Length && 0 <= q < concreteContent.Length && p != q) ==> concreteContent[p] != concreteContent[q]
+  ensures forall a :: a in old(content) && a != x ==> a in content
+  ensures forall i, j :: (0 <= i < |content| && 0 <= j < |content| && i != j) ==> (content[i] != content[j])
   modifies this
   modifies this.concreteContent
+  ensures old(Contains(x)) ==> old(concreteContent).Length == concreteContent.Length - 1
+  ensures old(!Contains(x)) ==> old(concreteContent) == concreteContent
 {
   if !Contains(x) {
     return;
   }
 
-  assert exists i :: 0 <= i < concreteContent.Length && concreteContent[i] == x && forall j :: 0 <= j < concreteContent.Length && j != i ==> concreteContent[j] != x;
-
-  assert concreteContent.Length > 0;
-
+  var newContent := new int[concreteContent.Length - 1];
   var i := 0;
   var j := 0;
-  var removedIndex := 0;
-  var newContent := new int[concreteContent.Length - 1];
+  var occurences := 0;
 
   while i < concreteContent.Length
     invariant 0 <= i <= concreteContent.Length
-    invariant forall p, q :: (0 <= p < concreteContent.Length && 0 <= q < concreteContent.Length && p != q) ==> concreteContent[p] != concreteContent[q]
-    invariant forall p, q :: (0 <= p < |content| && 0 <= q < |content| && p != q) ==> (content[p] != content[q])
-    modifies this.concreteContent
-    modifies newContent
+    invariant 0 <= j <= newContent.Length
+    invariant forall p :: (0 <= p < j) ==> newContent[p] != x
+    invariant forall p :: p in newContent[..j] ==> p in content && p != x
+    invariant forall p, q :: (0 <= p < j && 0 <= q < j && p != q) ==> newContent[p] != newContent[q]
+    decreases newContent.Length + concreteContent.Length - j - i
+    decreases newContent.Length - j
   {
+    assert j <= newContent.Length;
     if concreteContent[i] != x {
-      assert j == i;
       newContent[j] := concreteContent[i];
+      assert !(exists k :: 0 <= k < concreteContent.Length && k != i && concreteContent[k] == concreteContent[i]);
       j := j + 1;
     }
     else
     {
-      assert !(exists k :: 0 <= k < concreteContent.Length && k != i && concreteContent[k] == x);
+      occurences := occurences + 1;
     }
 
     i := i + 1;
   }
 
-  assert newContent.Length == concreteContent.Length - 1;
   concreteContent := newContent;
-  content := concreteContent[..];
-  assert x !in newContent[..];
-  assert x !in content;
-  assert !Contains(x);
+  content := newContent[..];
+
+  // assert forall i, j :: (0 <= i < |content| && 0 <= j < |content| && i != j) ==> content[i] != content[j];
 }
 
   function Contains(x: int): bool
@@ -142,7 +137,7 @@ method RemoveIfPresent(x: int)
     reads concreteContent
     requires Valid()
     ensures Valid()
-    ensures Contains(x) <==> x in content
+    ensures Contains(x) <==> x in content && exists i :: 0 <= i < concreteContent.Length && concreteContent[i] == x && forall j :: 0 <= j < concreteContent.Length && j != i ==> concreteContent[j] != x
   {
     x in concreteContent[..]
   }
@@ -171,12 +166,37 @@ method RemoveIfPresent(x: int)
   method Union(other: IntSet) returns (result: IntSet)
     requires Valid() && other.Valid()
     ensures Valid() && other.Valid()
+    ensures fresh(result)
     ensures forall x :: result.Contains(x) == Contains(x) || other.Contains(x)
   {
-    var newContent := concreteContent[..] + other.concreteContent[..];
-    result.content := newContent;
+    var uniqueCount := concreteContent.Length;
+    for i := 0 to other.concreteContent.Length
+    {
+      if other.concreteContent[i] !in concreteContent[..]
+      {
+        uniqueCount := uniqueCount + 1;
+      }
+    }
+
+    var newContent := new int[uniqueCount];
+    for i := 0 to concreteContent.Length
+    {
+      if concreteContent[i] !in other.concreteContent[..]
+      {
+        newContent[i] := concreteContent[i];
+      }
+    }
+    for i := 0 to other.concreteContent.Length
+    {
+      if other.concreteContent[i] !in concreteContent[..]
+      {
+        newContent[i + concreteContent.Length] := other.concreteContent[i];
+      }
+    }
+
     result := new IntSet();
-    result.content := newContent;
+    result.concreteContent := newContent;
+    result.content := newContent[..];
   }
 
   method Intersection(other: IntSet) returns (result: IntSet)
