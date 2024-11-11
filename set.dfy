@@ -1,4 +1,5 @@
-method Main() {
+method Main()
+{
   var s := new IntSet();
   assert s.IsEmpty() == true;
   assert s.Size() == 0;
@@ -12,6 +13,24 @@ method Main() {
   assert s.Size() == 3;
   assert s.Contains(2);
   assert !s.Contains(3);
+  s.RemoveIfPresent(2);
+  assert s.Size() == 2;
+  assert !s.Contains(2);
+  assert !s.Contains(3);
+  s.RemoveIfPresent(3);
+  assert s.Size() == 2;
+  assert s.Contains(2);  
+  s.RemoveIfPresent(2);
+  assert s.Size() == 2;
+  assert s.Contains(2);
+  assert !s.Contains(3);
+  s.RemoveIfPresent(1);
+  assert s.Size() == 1;
+  assert s.Contains(1);
+  assert !s.Contains(2);
+  s.RemoveIfPresent(0);
+  assert s.Size() == 0;
+  assert !s.Contains(0);
 }
 
 function Occurences(s: seq<int>, x: int): nat
@@ -126,11 +145,16 @@ method RemoveIfPresent(x: int)
   requires Valid()
   ensures Valid()
   ensures !Contains(x)
-  ensures forall a :: old(Contains(a)) && a != x ==> Contains(a)
   modifies this
+  ensures forall a :: old(Contains(a)) && a != x <==> Contains(a)
   modifies concreteContent
+  ensures old(Contains(x)) <==> fresh(concreteContent)
+  ensures old(!Contains(x)) <==> (!fresh(concreteContent) && concreteContent == old(concreteContent))
+  ensures old(Contains(x)) <==> old(Size()) == Size() + 1
+  ensures forall a :: old(Contains(a)) && a != x ==> Contains(a)
 {
   if !Contains(x) {
+    assert old(Size()) == Size();
     return;
   }
 
@@ -152,11 +176,17 @@ method RemoveIfPresent(x: int)
     if concreteContent[i] != x
     {
       assert concreteContent[i] !in newSeq;
+      assert !exists j :: 0 <= j < |newSeq| && newSeq[j] == concreteContent[i];
       newSeq := newSeq + [concreteContent[i]];
       assert old(Contains(concreteContent[i]));
       assert concreteContent[i] in old(content);
       assert concreteContent[i] in newSeq;
       assert x !in newSeq;
+    }
+    else
+    {
+      assert !exists j :: 0 <= j < |newSeq| && newSeq[j] == concreteContent[i];
+      assert !exists j :: 0 <= j < |newSeq| && newSeq[j] == x;
     }
   }
 
@@ -170,13 +200,44 @@ method RemoveIfPresent(x: int)
 
   assert newConcreteContent[..] == newSeq;
 
-  assert forall a :: a in newSeq <==> a in newConcreteContent[..];
-
   concreteContent := newConcreteContent;
   content := concreteContent[..];
   assert forall a :: old(Contains(a)) ==> a in old(content);
   assert forall a :: a in old(content) && a != x ==> a in newSeq;
 }
+
+  method Union(other: IntSet) returns (result: IntSet)
+    requires Valid() && other.Valid()
+    ensures Valid() && other.Valid()
+    ensures content == old(content) && other.content == old(other.content)
+    ensures fresh(result)
+    ensures forall x :: x in result.content <==> x in content || x in other.content
+  {
+    result := new IntSet();
+    var newContent := concreteContent[..];
+    assert forall x :: x in newContent <==> x in concreteContent[..];
+
+    for i := 0 to |other.concreteContent[..]|
+      invariant Unique(newContent)
+      invariant forall x :: x in newContent <==> x in concreteContent[..] || x in other.concreteContent[..]
+    {
+      if other.concreteContent[i] !in newContent
+      {
+        newContent := newContent + [other.concreteContent[i]];
+        assert other.concreteContent[i] in newContent;
+      }
+    }
+
+    result.concreteContent := new int[|newContent|];
+    forall i | 0 <= i < |newContent|
+    {
+      result.concreteContent[i] := newContent[i];
+    }
+    
+    assert Unique(newContent);
+    result.content := result.concreteContent[..];
+    assert result.content == result.concreteContent[..];
+  }
 
   method Intersection(other: IntSet) returns (result: IntSet)
     requires Valid() && other.Valid()
@@ -195,17 +256,5 @@ method RemoveIfPresent(x: int)
     }
 
     result.concreteContent := newContent;
-  }
-
-  method RemoveElementManual(sequence: seq<int>, elem: int) returns (newSeq: seq<int>)
-  {
-      newSeq := [];
-      for i := 0 to |sequence|
-      {
-          if sequence[i] != elem
-          {
-              newSeq := newSeq + [sequence[i]];
-          }
-      }
   }
 }
