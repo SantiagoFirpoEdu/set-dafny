@@ -137,31 +137,45 @@ method RemoveIfPresent(x: int)
   assert Unique(concreteContent[..]);
 
   var newSeq := [];
+  assert Unique(newSeq);
   for i := 0 to concreteContent.Length
     invariant Unique(concreteContent[..])
+    invariant Unique(newSeq)
     invariant forall a :: a in newSeq <==> a in concreteContent[..i] && a != x
     invariant x !in newSeq
     invariant |newSeq| <= i
-    invariant forall a, b :: 0 <= a < |newSeq| && 0 <= b < |newSeq| && a != b ==> newSeq[a] != newSeq[b]
+    invariant forall a :: a in concreteContent[i..] ==> a !in newSeq
+    invariant forall a :: a in concreteContent[..i] && a != x ==> a in newSeq
     invariant old(concreteContent[..]) == concreteContent[..]
+    invariant forall a :: old(Contains(a)) && a != x ==> Contains(a)
   {
     if concreteContent[i] != x
     {
+      assert concreteContent[i] !in newSeq;
       newSeq := newSeq + [concreteContent[i]];
+      assert old(Contains(concreteContent[i]));
+      assert concreteContent[i] in old(content);
+      assert concreteContent[i] in newSeq;
+      assert x !in newSeq;
     }
   }
 
   var newConcreteContent := new int[|newSeq|];
-  var i := 0;
-  while i < newConcreteContent.Length
-    modifies newConcreteContent
+  assert newConcreteContent.Length == |newSeq|;
+  assert allocated(newConcreteContent);
+  forall i | 0 <= i < newConcreteContent.Length
   {
     newConcreteContent[i] := newSeq[i];
-    i := i + 1;
   }
 
+  assert newConcreteContent[..] == newSeq;
+
+  assert forall a :: a in newSeq <==> a in newConcreteContent[..];
+
   concreteContent := newConcreteContent;
-  content := newConcreteContent[..];
+  content := concreteContent[..];
+  assert forall a :: old(Contains(a)) ==> a in old(content);
+  assert forall a :: a in old(content) && a != x ==> a in newSeq;
 }
 
   method Intersection(other: IntSet) returns (result: IntSet)
