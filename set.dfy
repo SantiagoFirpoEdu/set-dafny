@@ -163,8 +163,11 @@ method RemoveIfPresent(x: int)
   ensures old(Contains(x)) <==> fresh(concreteContent)
   ensures old(!Contains(x)) <==> (!fresh(concreteContent) && concreteContent == old(concreteContent))
   ensures forall a :: old(Contains(a)) && a != x ==> Contains(a)
+  ensures !old(Contains(x)) <==> Size() == old(Size()) && content == old(content)
+  ensures old(Contains(x)) <==> Size() == old(Size()) - 1
 {
-  if !Contains(x) {
+  if !Contains(x)
+  {
     assert old(Size()) == Size();
     return;
   }
@@ -201,6 +204,7 @@ method RemoveIfPresent(x: int)
     }
   }
 
+  // assert |newSeq| == |content| - 1;
   var newConcreteContent := new int[|newSeq|];
   assert newConcreteContent.Length == |newSeq|;
   assert allocated(newConcreteContent);
