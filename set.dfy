@@ -134,39 +134,34 @@ method RemoveIfPresent(x: int)
     return;
   }
 
-  assert exists i :: (0 <= i < concreteContent.Length && concreteContent[i] == x) && forall j :: (0 <= j < concreteContent.Length && j != i ==> concreteContent[j] != x);
+  assert Unique(concreteContent[..]);
 
-  var newContent := new int[concreteContent.Length - 1];
-  var i := 0;
-  var j := 0;
-
-  while j < newContent.Length
-    invariant 0 <= i <= concreteContent.Length
-    invariant 0 <= j <= newContent.Length
-    invariant concreteContent == old(concreteContent)
-    invariant content == old(content)
-    invariant x !in newContent[..j]
-    invariant forall a :: 0 <= a < i && concreteContent[a] != x ==> exists b :: 0 <= b < j && newContent[b] == concreteContent[a] && !exists c :: 0 <= c < j && c != b && newContent[c] == newContent[b]
-    decreases concreteContent.Length - i
+  var newSeq := [];
+  for i := 0 to concreteContent.Length
+    invariant Unique(concreteContent[..])
+    invariant forall a :: a in newSeq <==> a in concreteContent[..i] && a != x
+    invariant x !in newSeq
+    invariant |newSeq| <= i
+    invariant forall a, b :: 0 <= a < |newSeq| && 0 <= b < |newSeq| && a != b ==> newSeq[a] != newSeq[b]
+    invariant old(concreteContent[..]) == concreteContent[..]
   {
-    assert i != concreteContent.Length;
-    if concreteContent[i] != x {
-      assert j < concreteContent.Length;
-      newContent[j] := concreteContent[i];
-      assert concreteContent[i] in newContent[..j + 1];
-      assert newContent[j] != x;
-
-      j := j + 1;
+    if concreteContent[i] != x
+    {
+      newSeq := newSeq + [concreteContent[i]];
     }
+  }
 
+  var newConcreteContent := new int[|newSeq|];
+  var i := 0;
+  while i < newConcreteContent.Length
+    modifies newConcreteContent
+  {
+    newConcreteContent[i] := newSeq[i];
     i := i + 1;
   }
-  
-  assert forall a, b :: (0 <= a < j && 0 <= b < j && a != b) ==> (newContent[a] != newContent[b]);
 
-  assert x !in newContent[..];
-  content := newContent[..];
-  concreteContent := newContent;
+  concreteContent := newConcreteContent;
+  content := newConcreteContent[..];
 }
 
   method Intersection(other: IntSet) returns (result: IntSet)
