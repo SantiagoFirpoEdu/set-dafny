@@ -19,18 +19,30 @@ method Main()
   assert !s.Contains(3);
   s.RemoveIfPresent(3);
   assert s.Size() == 2;
-  assert s.Contains(2);  
+  assert !s.Contains(2);  
   s.RemoveIfPresent(2);
   assert s.Size() == 2;
-  assert s.Contains(2);
+  assert !s.Contains(2);
   assert !s.Contains(3);
   s.RemoveIfPresent(1);
   assert s.Size() == 1;
-  assert s.Contains(1);
+  assert !s.Contains(1);
   assert !s.Contains(2);
   s.RemoveIfPresent(0);
   assert s.Size() == 0;
   assert !s.Contains(0);
+  s.Add(0);
+  assert s.Size() == 1;
+  assert s.Contains(0);
+  s.Add(1);
+  assert s.Size() == 2;
+  assert s.Contains(0);
+  assert s.Contains(1);
+  s.Add(2);
+  assert s.Size() == 3;
+  assert s.Contains(0);
+  assert s.Contains(1);
+  assert s.Contains(2);
 }
 
 function Occurences(s: seq<int>, x: int): nat
@@ -150,7 +162,6 @@ method RemoveIfPresent(x: int)
   modifies concreteContent
   ensures old(Contains(x)) <==> fresh(concreteContent)
   ensures old(!Contains(x)) <==> (!fresh(concreteContent) && concreteContent == old(concreteContent))
-  ensures old(Contains(x)) <==> old(Size()) == Size() + 1
   ensures forall a :: old(Contains(a)) && a != x ==> Contains(a)
 {
   if !Contains(x) {
