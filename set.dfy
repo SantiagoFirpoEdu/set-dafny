@@ -64,6 +64,8 @@ class IntSet {
     ensures Size() == 0
     ensures content == []
     ensures forall x :: !Contains(x)
+    ensures fresh(concreteContent)
+    ensures allocated(concreteContent)
   {
     concreteContent := new int[0];
     content := [];
@@ -159,7 +161,6 @@ method RemoveIfPresent(x: int)
   ensures Valid()
   ensures !Contains(x)
   modifies this
-  modifies concreteContent
   ensures forall a :: old(Contains(a)) && a != x <==> Contains(a)
   ensures old(Contains(x)) <==> fresh(concreteContent)
   ensures old(!Contains(x)) <==> concreteContent == old(concreteContent)
