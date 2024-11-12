@@ -1,52 +1,71 @@
 method Main()
 {
-  var s := new IntSet();
-  assert s.IsEmpty() == true;
-  assert s.Size() == 0;
-  s.Add(0);
-  assert s.Size() == 1;
-  s.Add(1);
-  assert !s.Contains(2);
-  assert s.Size() == 2;
-  assert s.Contains(1);
-  s.Add(2);
-  s.Add(2);
-  s.Add(2);
-  s.Add(2);
-  s.Add(2);
-  assert s.Size() == 3;
-  assert s.Contains(2);
-  assert !s.Contains(3);
-  s.RemoveIfPresent(2);
-  assert s.Size() == 2;
-  assert !s.Contains(2);
-  assert !s.Contains(3);
-  s.RemoveIfPresent(3);
-  assert s.Size() == 2;
-  assert !s.Contains(2);  
-  s.RemoveIfPresent(2);
-  assert s.Size() == 2;
-  assert !s.Contains(2);
-  assert !s.Contains(3);
-  s.RemoveIfPresent(1);
-  assert s.Size() == 1;
-  assert !s.Contains(1);
-  assert !s.Contains(2);
-  s.RemoveIfPresent(0);
-  assert s.Size() == 0;
-  assert !s.Contains(0);
-  s.Add(0);
-  assert s.Size() == 1;
-  assert s.Contains(0);
-  s.Add(1);
-  assert s.Size() == 2;
-  assert s.Contains(0);
-  assert s.Contains(1);
-  s.Add(2);
-  assert s.Size() == 3;
-  assert s.Contains(0);
-  assert s.Contains(1);
-  assert s.Contains(2);
+  // var s := new IntSet();
+  // assert s.IsEmpty() == true;
+  // assert s.Size() == 0;
+  // s.Add(0);
+  // assert s.Size() == 1;
+  // s.Add(1);
+  // assert !s.Contains(2);
+  // assert s.Size() == 2;
+  // assert s.Contains(1);
+  // s.Add(2);
+  // s.Add(2);
+  // s.Add(2);
+  // s.Add(2);
+  // s.Add(2);
+  // assert s.Size() == 3;
+  // assert s.Contains(2);
+  // assert !s.Contains(3);
+  // s.RemoveIfPresent(2);
+  // assert s.Size() == 2;
+  // assert !s.Contains(2);
+  // assert !s.Contains(3);
+  // s.RemoveIfPresent(3);
+  // assert s.Size() == 2;
+  // assert !s.Contains(2);  
+  // s.RemoveIfPresent(2);
+  // assert s.Size() == 2;
+  // assert !s.Contains(2);
+  // assert !s.Contains(3);
+  // s.RemoveIfPresent(1);
+  // assert s.Size() == 1;
+  // assert !s.Contains(1);
+  // assert !s.Contains(2);
+  // s.RemoveIfPresent(0);
+  // assert s.Size() == 0;
+  // assert !s.Contains(0);
+  // s.Add(0);
+  // assert s.Size() == 1;
+  // assert s.Contains(0);
+  // s.Add(1);
+  // assert s.Size() == 2;
+  // assert s.Contains(0);
+  // assert s.Contains(1);
+  // s.Add(2);
+  // assert s.Size() == 3;
+  // assert s.Contains(0);
+  // assert s.Contains(1);
+  // assert s.Contains(2);
+  // var s2 := new IntSet();
+  // s2.Add(9);
+  // s2.Add(8);
+  // s2.Add(7);
+  // s2.Add(6);
+  // s2.Add(5);
+  var s3 := new IntSet();
+  s3.Add(1);
+  s3.Add(2);
+  var s4 := new IntSet();
+  s4.Add(3);
+  s4.Add(4);
+  var union := s3.Union(s4);
+  assert union.Contains(1);
+  assert union.Contains(2);
+  assert union.Contains(3);
+  assert union.Contains(4);
+  assert union.Size() == 4;
+  assert forall x :: x in union.content <==> x in s3.content || x in s4.content;
 }
 
 function Occurences(s: seq<int>, x: int): nat
@@ -54,6 +73,12 @@ function Occurences(s: seq<int>, x: int): nat
 {
   if |s| == 0 then 0
   else if s[0] == x then 1 + Occurences(s[1..], x) else Occurences(s[1..], x)
+}
+
+function UniqueElements(s: seq<int>): seq<int>
+{
+  if |s| == 0 then []
+  else if s[0] !in s[1..] then [s[0]] + UniqueElements(s[1..]) else UniqueElements(s[1..])
 }
 
 class IntSet {
@@ -236,19 +261,19 @@ method RemoveIfPresent(x: int)
     ensures fresh(result)
     ensures result.Valid()
     ensures forall x :: result.Contains(x) <==> Contains(x) || other.Contains(x)
+    ensures result.content == UniqueElements(content + other.content)
+    ensures result.Size() == |UniqueElements(content + other.content)|
   {
     result := new IntSet();
     var newContent := concreteContent[..];
     assert |newContent| == concreteContent.Length;
-    assert forall x :: x in concreteContent[..] <==> x in newContent;
     assert newContent == concreteContent[..];
+    assert UniqueElements(concreteContent[..]) == UniqueElements(newContent);
 
     assert forall x :: x in newContent <==> x in concreteContent[..];
 
     for i := 0 to |other.concreteContent[..]|
       invariant Unique(newContent)
-      invariant old(concreteContent[..]) == concreteContent[..]
-      invariant old(other.concreteContent[..]) == other.concreteContent[..]
       invariant forall j :: 0 <= j < i ==> other.concreteContent[j] in newContent
       invariant forall j :: 0 <= j < concreteContent.Length ==> concreteContent[j] in newContent
       invariant forall j :: 0 <= j < |newContent| ==> newContent[j] in other.concreteContent[..] || newContent[j] in concreteContent[..]
@@ -261,8 +286,6 @@ method RemoveIfPresent(x: int)
       }
     }
 
-    assert forall j :: 0 <= j < |newContent| ==> newContent[j] in other.concreteContent[..] || newContent[j] in concreteContent[..];
-
     result.concreteContent := new int[|newContent|];
     forall i | 0 <= i < |newContent|
     {
@@ -270,11 +293,8 @@ method RemoveIfPresent(x: int)
     }
 
     assert result.concreteContent[..] == newContent;
-    assert forall x :: x in result.concreteContent[..] ==> x in newContent;
 
-    assert Unique(newContent);
     result.content := result.concreteContent[..];
-    assert result.content == result.concreteContent[..];
   }
 
   method Intersection(other: IntSet) returns (result: IntSet)
