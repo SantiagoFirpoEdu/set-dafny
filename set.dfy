@@ -10,6 +10,7 @@ method Main()
   assert s.Size() == 2;
   assert s.Contains(1);
   s.Add(2);
+  s.Add(2);
   assert s.Size() == 3;
   assert s.Contains(2);
   assert !s.Contains(3);
@@ -161,7 +162,7 @@ method RemoveIfPresent(x: int)
   modifies concreteContent
   ensures forall a :: old(Contains(a)) && a != x <==> Contains(a)
   ensures old(Contains(x)) <==> fresh(concreteContent)
-  ensures old(!Contains(x)) <==> (!fresh(concreteContent) && concreteContent == old(concreteContent))
+  ensures old(!Contains(x)) <==> concreteContent == old(concreteContent)
   ensures forall a :: old(Contains(a)) && a != x ==> Contains(a)
   ensures !old(Contains(x)) <==> Size() == old(Size()) && content == old(content)
   ensures old(Contains(x)) <==> Size() == old(Size()) - 1
@@ -182,6 +183,8 @@ method RemoveIfPresent(x: int)
     invariant forall a :: a in newSeq <==> a in concreteContent[..i] && a != x
     invariant x !in newSeq
     invariant |newSeq| <= i
+    invariant x in concreteContent[..i] ==> |newSeq| == i - 1
+    invariant x !in concreteContent[..i] ==> |newSeq| == i
     invariant forall a :: a in concreteContent[i..] ==> a !in newSeq
     invariant forall a :: a in concreteContent[..i] && a != x ==> a in newSeq
     invariant old(concreteContent[..]) == concreteContent[..]
