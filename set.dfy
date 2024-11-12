@@ -270,7 +270,6 @@ method RemoveIfPresent(x: int)
     }
 
     assert result.concreteContent[..] == newContent;
-
     assert forall x :: x in result.concreteContent[..] ==> x in newContent;
 
     assert Unique(newContent);
@@ -281,35 +280,38 @@ method RemoveIfPresent(x: int)
   method Intersection(other: IntSet) returns (result: IntSet)
     requires Valid() && other.Valid()
     ensures Valid() && other.Valid()
+    ensures content == old(content) && other.content == old(other.content)
+    ensures fresh(result)
+    ensures result.Valid()
     ensures forall x :: result.Contains(x) <==> Contains(x) && other.Contains(x)
   {
     result := new IntSet();
     var newContent := [];
-    for i := 0 to |concreteContent[..]|
-      invariant forall x :: x in newContent <==> x in concreteContent[..] && x in other.concreteContent[..]
+
+    for i := 0 to |other.concreteContent[..]|
+      invariant old(concreteContent[..]) == concreteContent[..]
+      invariant old(other.concreteContent[..]) == other.concreteContent[..]
+      invariant Unique(concreteContent[..]) && Unique(other.concreteContent[..])
+      invariant forall j :: 0 <= j < |newContent| ==> newContent[j] in other.concreteContent[..] && newContent[j] in concreteContent[..]
     {
-      if (concreteContent[i] in other.concreteContent[..])
+      if other.concreteContent[i] in concreteContent[..]
       {
-        newContent := newContent + [concreteContent[i]];
-        assert concreteContent[i] in newContent;
-        assert concreteContent[i] in other.content;
+        newContent := newContent + [other.concreteContent[i]];
       }
     }
+
+    assert forall j :: 0 <= j < |newContent| ==> newContent[j] in other.concreteContent[..] && newContent[j] in concreteContent[..];
 
     result.concreteContent := new int[|newContent|];
     forall i | 0 <= i < |newContent|
     {
       result.concreteContent[i] := newContent[i];
     }
-    forall i | 0 <= i < |newContent|
-    {
-      assert newContent[i] in content;
-      assert newContent[i] in other.content;
-      assert !exists j :: 0 <= j < |newContent| && j != i && newContent[j] == newContent[i];
-    }
 
-    assert Unique(newContent);
-    assert forall x :: x in result.content && x in other.content <==> x in newContent;
+    assert result.concreteContent[..] == newContent;
+    assert forall x :: x in result.concreteContent[..] ==> x in newContent;
+
     result.content := result.concreteContent[..];
+    assert result.content == result.concreteContent[..];
   }
 }
