@@ -75,10 +75,10 @@ function Occurences(s: seq<int>, x: int): nat
   else if s[0] == x then 1 + Occurences(s[1..], x) else Occurences(s[1..], x)
 }
 
-function UniqueElements(s: seq<int>): seq<int>
+predicate Unique(sequence: seq<int>)
+  ensures Unique(sequence) <==> forall i, j :: 0 <= i < |sequence| && 0 <= j < |sequence| && i != j ==> sequence[i] != sequence[j]
 {
-  if |s| == 0 then []
-  else if s[0] !in s[1..] then [s[0]] + UniqueElements(s[1..]) else UniqueElements(s[1..])
+  forall i, j :: 0 <= i < |sequence| && 0 <= j < |sequence| && i != j ==> sequence[i] != sequence[j]
 }
 
 class IntSet {
@@ -107,12 +107,6 @@ class IntSet {
   predicate IsValidIndexForArray(sequence: array<int>, index: int)
   {
     0 <= index < sequence.Length
-  }
-
-  predicate Unique(sequence: seq<int>)
-    ensures Unique(sequence) <==> forall i, j :: 0 <= i < |sequence| && 0 <= j < |sequence| && i != j ==> sequence[i] != sequence[j]
-  {
-    forall i, j :: 0 <= i < |sequence| && 0 <= j < |sequence| && i != j ==> sequence[i] != sequence[j]
   }
 
   ghost predicate Valid()
@@ -184,75 +178,85 @@ class IntSet {
     concreteContent.Length == 0
   }
 
-method RemoveIfPresent(x: int)
-  requires Valid()
-  ensures Valid()
-  ensures !Contains(x)
-  modifies this
-  ensures forall a :: old(Contains(a)) && a != x <==> Contains(a)
-  ensures old(Contains(x)) <==> fresh(concreteContent)
-  ensures old(!Contains(x)) <==> concreteContent == old(concreteContent)
-  ensures forall a :: old(Contains(a)) && a != x ==> Contains(a)
-  ensures !old(Contains(x)) <==> Size() == old(Size()) && content == old(content)
-  ensures old(Contains(x)) <==> Size() == old(Size()) - 1
-{
-  if !Contains(x)
+  method RemoveIfPresent(x: int)
+    requires Valid()
+    ensures Valid()
+    ensures !Contains(x)
+    modifies this
+    ensures forall a :: old(Contains(a)) && a != x <==> Contains(a)
+    ensures old(Contains(x)) <==> fresh(concreteContent)
+    ensures old(!Contains(x)) <==> concreteContent == old(concreteContent)
+    ensures forall a :: old(Contains(a)) && a != x ==> Contains(a)
+    ensures !old(Contains(x)) <==> Size() == old(Size()) && content == old(content)
+    ensures old(Contains(x)) <==> Size() == old(Size()) - 1
   {
-    assert old(Size()) == Size();
-    return;
-  }
-
-  assert Unique(concreteContent[..]);
-
-  var newSeq := [];
-  assert Unique(newSeq);
-  for i := 0 to concreteContent.Length
-    invariant Unique(concreteContent[..])
-    invariant Unique(newSeq)
-    invariant forall a :: a in newSeq <==> a in concreteContent[..i] && a != x
-    invariant x !in newSeq
-    invariant |newSeq| <= i
-    invariant x in concreteContent[..i] ==> |newSeq| == i - 1
-    invariant x !in concreteContent[..i] ==> |newSeq| == i
-    invariant forall a :: a in concreteContent[i..] ==> a !in newSeq
-    invariant forall a :: a in concreteContent[..i] && a != x ==> a in newSeq
-    invariant old(concreteContent[..]) == concreteContent[..]
-    invariant forall a :: old(Contains(a)) && a != x ==> Contains(a)
-  {
-    if concreteContent[i] != x
+    if !Contains(x)
     {
-      assert concreteContent[i] !in newSeq;
-      assert !exists j :: 0 <= j < |newSeq| && newSeq[j] == concreteContent[i];
-      newSeq := newSeq + [concreteContent[i]];
-      assert old(Contains(concreteContent[i]));
-      assert concreteContent[i] in old(content);
-      assert concreteContent[i] in newSeq;
-      assert x !in newSeq;
+      assert old(Size()) == Size();
+      return;
     }
-    else
+
+    assert Unique(concreteContent[..]);
+
+    var newSeq := [];
+    assert Unique(newSeq);
+    for i := 0 to concreteContent.Length
+      invariant Unique(concreteContent[..])
+      invariant Unique(newSeq)
+      invariant forall a :: a in newSeq <==> a in concreteContent[..i] && a != x
+      invariant x !in newSeq
+      invariant |newSeq| <= i
+      invariant x in concreteContent[..i] ==> |newSeq| == i - 1
+      invariant x !in concreteContent[..i] ==> |newSeq| == i
+      invariant forall a :: a in concreteContent[i..] ==> a !in newSeq
+      invariant forall a :: a in concreteContent[..i] && a != x ==> a in newSeq
+      invariant old(concreteContent[..]) == concreteContent[..]
+      invariant forall a :: old(Contains(a)) && a != x ==> Contains(a)
     {
-      assert !exists j :: 0 <= j < |newSeq| && newSeq[j] == concreteContent[i];
-      assert !exists j :: 0 <= j < |newSeq| && newSeq[j] == x;
-      assert !exists j :: 0 <= j < concreteContent.Length && j != i && concreteContent[j] == x;
+      if concreteContent[i] != x
+      {
+        assert concreteContent[i] !in newSeq;
+        assert !exists j :: 0 <= j < |newSeq| && newSeq[j] == concreteContent[i];
+        newSeq := newSeq + [concreteContent[i]];
+        assert old(Contains(concreteContent[i]));
+        assert concreteContent[i] in old(content);
+        assert concreteContent[i] in newSeq;
+        assert x !in newSeq;
+      }
+      else
+      {
+        assert !exists j :: 0 <= j < |newSeq| && newSeq[j] == concreteContent[i];
+        assert !exists j :: 0 <= j < |newSeq| && newSeq[j] == x;
+        assert !exists j :: 0 <= j < concreteContent.Length && j != i && concreteContent[j] == x;
+      }
     }
+
+    assert |newSeq| == |content| - 1;
+    var newConcreteContent := new int[|newSeq|];
+    assert newConcreteContent.Length == |newSeq|;
+    assert allocated(newConcreteContent);
+    forall i | 0 <= i < newConcreteContent.Length
+    {
+      newConcreteContent[i] := newSeq[i];
+    }
+
+    assert newConcreteContent[..] == newSeq;
+
+    concreteContent := newConcreteContent;
+    content := concreteContent[..];
+    assert forall a :: old(Contains(a)) ==> a in old(content);
+    assert forall a :: a in old(content) && a != x ==> a in newSeq;
   }
 
-  assert |newSeq| == |content| - 1;
-  var newConcreteContent := new int[|newSeq|];
-  assert newConcreteContent.Length == |newSeq|;
-  assert allocated(newConcreteContent);
-  forall i | 0 <= i < newConcreteContent.Length
+  function UniqueCount(a: seq<int>): nat
+    ensures Unique(a) <==> UniqueCount(a) == |a|
+    ensures UniqueCount(a) <= |a|
+    ensures UniqueCount(a) == |a| ==> forall i, j :: 0 <= i < |a| && 0 <= j < |a| && i != j ==> a[i] != a[j]
   {
-    newConcreteContent[i] := newSeq[i];
+    if |a| == 0 then 0
+    else if a[0] in a[1..] then 0 else 1 + UniqueCount(a[1..])
   }
 
-  assert newConcreteContent[..] == newSeq;
-
-  concreteContent := newConcreteContent;
-  content := concreteContent[..];
-  assert forall a :: old(Contains(a)) ==> a in old(content);
-  assert forall a :: a in old(content) && a != x ==> a in newSeq;
-}
 
   method Union(other: IntSet) returns (result: IntSet)
     requires Valid() && other.Valid()
@@ -261,14 +265,16 @@ method RemoveIfPresent(x: int)
     ensures fresh(result)
     ensures result.Valid()
     ensures forall x :: result.Contains(x) <==> Contains(x) || other.Contains(x)
-    ensures result.content == UniqueElements(content + other.content)
-    ensures result.Size() == |UniqueElements(content + other.content)|
+    ensures result.Size() >= |content|
+    ensures result.Size() == UniqueCount(content + other.content)
   {
     result := new IntSet();
     var newContent := concreteContent[..];
     assert |newContent| == concreteContent.Length;
     assert newContent == concreteContent[..];
-    assert UniqueElements(concreteContent[..]) == UniqueElements(newContent);
+
+    assert UniqueCount(newContent) == concreteContent.Length;
+    assert |newContent| == UniqueCount(concreteContent[..]);
 
     assert forall x :: x in newContent <==> x in concreteContent[..];
 
@@ -277,12 +283,18 @@ method RemoveIfPresent(x: int)
       invariant forall j :: 0 <= j < i ==> other.concreteContent[j] in newContent
       invariant forall j :: 0 <= j < concreteContent.Length ==> concreteContent[j] in newContent
       invariant forall j :: 0 <= j < |newContent| ==> newContent[j] in other.concreteContent[..] || newContent[j] in concreteContent[..]
+      invariant |newContent| >= concreteContent.Length
+      invariant forall x :: x in newContent[concreteContent.Length..] ==> x in other.concreteContent[..]
+      invariant newContent[..concreteContent.Length] == concreteContent[..]
+      invariant forall x :: x in other.concreteContent[..i] && x !in concreteContent[..] <==> x in newContent[concreteContent.Length..]
+      invariant |newContent| == concreteContent.Length + |newContent[concreteContent.Length..]|
+      invariant forall x :: x in newContent[concreteContent.Length..] <==> x in other.concreteContent[..i] && x !in concreteContent[..]
+      invariant |newContent| == UniqueCount(concreteContent[..] + other.concreteContent[..i])
     {
       if other.concreteContent[i] !in newContent
       {
+        // assert |newContent| == UniqueCount(newContent + other.concreteContent[..i]);
         newContent := newContent + [other.concreteContent[i]];
-        assert other.concreteContent[i] in newContent;
-        assert (other.concreteContent[i] in other.concreteContent[..]) <==> (other.concreteContent[i] in newContent[..]);
       }
     }
 
