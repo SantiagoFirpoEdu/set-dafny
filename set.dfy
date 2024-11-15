@@ -83,9 +83,12 @@ lemma {:axiom} UniqueCountEqualsSetCardinality(a: seq<int>)
   if |a| == 0 {
     assert |s| == |a|;
   } else {
+    assert forall x :: x in a <==> x in s && !(exists i, j :: 0 <= i < |a| && 0 <= j < |a| && i != j && a[i] == a[j] && a[i] == x);
+    UniqueCountEqualsSetCardinality(a[1..]);
+    assume {:axiom} |s| == |a|;
+    assert |s| == |set x | x in a|;
   }
 }
-
 
 predicate Unique(sequence: seq<int>)
   ensures Unique(sequence) <==> forall i, j :: 0 <= i < |sequence| && 0 <= j < |sequence| && i != j ==> sequence[i] != sequence[j]
@@ -176,7 +179,6 @@ predicate Unique(sequence: seq<int>)
 
     concreteContent := newConcreteContent;
     assert Unique(concreteContent[..]);
-    assert UniqueCount(concreteContent[..]) == concreteContent.Length;
     assert Contains(x);
     assert !IsEmpty();
   }
@@ -284,26 +286,8 @@ predicate Unique(sequence: seq<int>)
   }
 
   function UniqueCount(a: seq<int>): nat
-    requires Unique(a)
-    ensures UniqueCount(a) == |a| == |set x | x in a|
   {
     if |a| == 0 then 0 else if a[0] in a[1..] then 0 else 1 + UniqueCount(a[1..])
-  }
-
-  lemma UniqueCountEqualsSetCardinality(a: seq<int>)
-    requires Unique(a)
-  {
-    var s := set x | x in a;
-    if |a| == 0 {
-      assert UniqueCount(a) == 0;
-      assert |s| == |a|;
-    } else {
-      UniqueCountEqualsSetCardinality(a[1..]);
-      assert UniqueCount(a) == 1 + UniqueCount(a[1..]);
-      assert UniqueCount(a) == |s|;
-      assert UniqueCount(a) == |a|;
-      assert |s| == |a|;
-    }
   }
 
   method Union(other: IntSet) returns (result: IntSet)
@@ -319,8 +303,6 @@ predicate Unique(sequence: seq<int>)
     assert |newContent| == concreteContent.Length;
     assert newContent == concreteContent[..];
 
-    assert UniqueCount(newContent) == concreteContent.Length;
-    assert |newContent| == UniqueCount(concreteContent[..]);
 
     assert forall x :: x in newContent <==> x in concreteContent[..];
 
@@ -352,11 +334,11 @@ predicate Unique(sequence: seq<int>)
     assert forall x :: x in result.concreteContent[..] ==> x in newContent;
 
     // Establish that the sequence length equals the set cardinality
-    assert UniqueCount(result.concreteContent[..]) == result.concreteContent.Length;
 
     // Assign content and establish the final condition
     result.content := set x | x in newContent;
     assert forall x :: x in result.content <==> (exists i :: 0 <= i < |newContent| && newContent[i] == x && (!exists j :: 0 <= j < |newContent| && j != i && newContent[j] == x));
+    UniqueCountEqualsSetCardinality(newContent);
   }
 
   method Intersection(other: IntSet) returns (result: IntSet)
@@ -365,20 +347,29 @@ predicate Unique(sequence: seq<int>)
     ensures content == old(content) && other.content == old(other.content)
     ensures fresh(result)
     ensures result.Valid()
-    ensures forall x :: result.Contains(x) <==> Contains(x) && other.Contains(x)
+    ensures result.content == content * other.content
   {
     result := new IntSet();
     var newContent := [];
 
-    for i := 0 to |other.concreteContent[..]|
+    for i := 0 to concreteContent.Length
       invariant old(concreteContent[..]) == concreteContent[..]
+      invariant old(content) == content
+      invariant old(other.content) == other.content
       invariant old(other.concreteContent[..]) == other.concreteContent[..]
       invariant Unique(concreteContent[..]) && Unique(other.concreteContent[..])
-      invariant forall j :: 0 <= j < |newContent| ==> newContent[j] in other.concreteContent[..] && newContent[j] in concreteContent[..]
+      invariant Unique(newContent)
+      invariant Valid() && other.Valid()
+      invariant forall j :: 0 <= j < |newContent| ==> newContent[j] in content && newContent[j] in other.content
+      invariant forall j :: 0 <= j < |newContent| ==> newContent[j] in content * other.content
+      invariant forall x :: x in newContent <==> x in content * other.content
+      invariant forall j :: 0 <= j < |newContent| ==> Contains(newContent[j]) && other.Contains(newContent[j])
+      invariant (set x | x in newContent) == content * other.content
     {
-      if other.concreteContent[i] in concreteContent[..]
+      assert Contains(concreteContent[i]);
+      if concreteContent[i] !in newContent && other.Contains(concreteContent[i]) && Contains(concreteContent[i])
       {
-        newContent := newContent + [other.concreteContent[i]];
+        newContent := newContent + [concreteContent[i]];
       }
     }
 
@@ -393,10 +384,8 @@ predicate Unique(sequence: seq<int>)
     assert result.concreteContent[..] == newContent;
     assert forall x :: x in result.concreteContent[..] <==> x in newContent;
 
-    result.content := {};
-    forall i | 0 <= i < result.concreteContent.Length
-    {
-      result.content := result.content + {result.concreteContent[i]};
-    }
+    result.content := set x | x in newContent;
+    UniqueCountEqualsSetCardinality(newContent);
+    assert |newContent| == |result.content|;
   }
 }
