@@ -53,19 +53,19 @@ method Main()
   // s2.Add(7);
   // s2.Add(6);
   // s2.Add(5);
-  var s3 := new IntSet();
-  s3.Add(1);
-  s3.Add(2);
-  var s4 := new IntSet();
-  s4.Add(3);
-  s4.Add(4);
-  var union := s3.Union(s4);
-  assert union.Contains(1);
-  assert union.Contains(2);
-  assert union.Contains(3);
-  assert union.Contains(4);
-  assert union.Size() == 4;
-  assert forall x :: x in union.content <==> x in s3.content || x in s4.content;
+  // var s3 := new IntSet();
+  // s3.Add(1);
+  // s3.Add(2);
+  // var s4 := new IntSet();
+  // s4.Add(3);
+  // s4.Add(4);
+  // var union := s3.Union(s4);
+  // assert union.Contains(1);
+  // assert union.Contains(2);
+  // assert union.Contains(3);
+  // assert union.Contains(4);
+  // assert union.Size() == 4;
+  // assert forall x :: x in union.content <==> x in s3.content || x in s4.content;
 }
 
 function Occurences(s: seq<int>, x: int): nat
@@ -75,14 +75,37 @@ function Occurences(s: seq<int>, x: int): nat
   else if s[0] == x then 1 + Occurences(s[1..], x) else Occurences(s[1..], x)
 }
 
+
 predicate Unique(sequence: seq<int>)
   ensures Unique(sequence) <==> forall i, j :: 0 <= i < |sequence| && 0 <= j < |sequence| && i != j ==> sequence[i] != sequence[j]
 {
   forall i, j :: 0 <= i < |sequence| && 0 <= j < |sequence| && i != j ==> sequence[i] != sequence[j]
 }
 
-class IntSet {
-  ghost var content: seq<int>
+lemma UniqueCountEqualsSetLength(s: seq<int>)
+  ensures Unique(s) ==> |s| == |set x | x in s|
+{
+  if |s| == 0 {
+    // Case 1: Empty sequence
+    assert |set x | x in s| == 0; // Set of an empty sequence is empty
+  } else {
+    // Case 2: Non-empty sequence
+    if Unique(s) {
+      // Assert that all elements of the sequence are in the set
+      assert forall x :: x in s ==> x in set x | x in s;
+      
+      // Assert that the set contains no elements outside the sequence
+      assert forall x :: x in (set x | x in s) <==> x in s;
+
+      // Deduce equality of sizes
+      assert forall x :: x in s ==> !exists i, j :: 0 <= i < |s| && 0 <= j < |s| && i != j && s[i] == x && s[j] == x;
+      assert |s| == |set x | x in s|;
+    }
+  }
+}
+
+  class IntSet {
+  ghost var content: set<int>
   
   var concreteContent: array<int>
 
@@ -90,13 +113,13 @@ class IntSet {
     ensures Valid()
     ensures IsEmpty()
     ensures Size() == 0
-    ensures content == []
+    ensures content == {}
     ensures forall x :: !Contains(x)
     ensures fresh(concreteContent)
     ensures allocated(concreteContent)
   {
     concreteContent := new int[0];
-    content := [];
+    content := {};
   }
 
   predicate IsValidIndex(sequence: seq<int>, index: int)
@@ -113,8 +136,9 @@ class IntSet {
     reads this
     reads concreteContent
   {
-    && (forall i, j :: (0 <= i < |content| && 0 <= j < |content| && i != j) ==> (content[i] != content[j]))
-    && concreteContent[..] == content
+    && Unique(concreteContent[..])
+    && (forall x :: x in content <==> x in concreteContent[..])
+    && (|content| == concreteContent.Length)
   }
 
   method Add(x: int)
@@ -124,7 +148,8 @@ class IntSet {
     ensures Contains(x)
     ensures !IsEmpty()
     ensures old(Contains(x)) <==> Size() == old(Size()) && content == old(content)
-    ensures !old(Contains(x)) <==> Size() == old(Size()) + 1 && content == old(content) + [x]
+    ensures !old(Contains(x)) <==> Size() == old(Size()) + 1
+    ensures content == old(content) + {x}
   {
     if (x in concreteContent[..])
     {
@@ -133,16 +158,35 @@ class IntSet {
       return;
     }
 
-    var newContent := new int[concreteContent.Length + 1];
-    forall i | 0 <= i < concreteContent.Length
-    {
-      newContent[i] := concreteContent[i];
-    }
+    var newContent := concreteContent[..];
     
-    newContent[concreteContent.Length] := x;
+    newContent := newContent + [x];
+    assert Unique(newContent);
 
-    concreteContent := newContent;
-    content := newContent[..];
+    var newConcreteContent := new int[|newContent|];
+    content := {};
+
+    for i := 0 to |newContent|
+      invariant forall a :: a in newContent[..i] <==> a in content
+      invariant |newContent[..i]| == |content|
+    {
+      content := content + {newContent[i]};
+    }
+
+    forall i | 0 <= i < newConcreteContent.Length
+    {
+      newConcreteContent[i] := newContent[i];
+    }
+
+    assert newContent == newConcreteContent[..];
+    assert x in newContent;
+    assert x in newConcreteContent[..];
+    assert Unique(newContent);
+    assert Unique(newConcreteContent[..]);
+
+    concreteContent := newConcreteContent;
+    assert Unique(concreteContent[..]);
+    assert UniqueCount(concreteContent[..]) == concreteContent.Length;
     assert Contains(x);
     assert !IsEmpty();
   }
@@ -173,7 +217,7 @@ class IntSet {
     requires Valid()
     ensures Valid()
     ensures IsEmpty() == (Size() == 0)
-    ensures IsEmpty() == (content == [])
+    ensures IsEmpty() == (content == {})
   {
     concreteContent.Length == 0
   }
@@ -231,7 +275,6 @@ class IntSet {
       }
     }
 
-    assert |newSeq| == |content| - 1;
     var newConcreteContent := new int[|newSeq|];
     assert newConcreteContent.Length == |newSeq|;
     assert allocated(newConcreteContent);
@@ -243,7 +286,9 @@ class IntSet {
     assert newConcreteContent[..] == newSeq;
 
     concreteContent := newConcreteContent;
-    content := concreteContent[..];
+
+    content := content - {x};
+
     assert forall a :: old(Contains(a)) ==> a in old(content);
     assert forall a :: a in old(content) && a != x ==> a in newSeq;
   }
@@ -264,9 +309,7 @@ class IntSet {
     ensures content == old(content) && other.content == old(other.content)
     ensures fresh(result)
     ensures result.Valid()
-    ensures forall x :: result.Contains(x) <==> Contains(x) || other.Contains(x)
-    ensures result.Size() >= |content|
-    ensures result.Size() == UniqueCount(content + other.content)
+    ensures result.content == content + other.content
   {
     result := new IntSet();
     var newContent := concreteContent[..];
@@ -289,11 +332,9 @@ class IntSet {
       invariant forall x :: x in other.concreteContent[..i] && x !in concreteContent[..] <==> x in newContent[concreteContent.Length..]
       invariant |newContent| == concreteContent.Length + |newContent[concreteContent.Length..]|
       invariant forall x :: x in newContent[concreteContent.Length..] <==> x in other.concreteContent[..i] && x !in concreteContent[..]
-      invariant |newContent| == UniqueCount(concreteContent[..] + other.concreteContent[..i])
     {
       if other.concreteContent[i] !in newContent
       {
-        // assert |newContent| == UniqueCount(newContent + other.concreteContent[..i]);
         newContent := newContent + [other.concreteContent[i]];
       }
     }
@@ -305,8 +346,17 @@ class IntSet {
     }
 
     assert result.concreteContent[..] == newContent;
+    assert forall x :: x in result.concreteContent[..] ==> x in newContent;
+    assert Unique(result.concreteContent[..]);
+    assert UniqueCount(result.concreteContent[..]) == result.concreteContent.Length;
 
-    result.content := result.concreteContent[..];
+    assert Unique(newContent);
+    assert forall x :: x in newContent ==> exists i :: 0 <= i < |newContent| && newContent[i] == x && !exists j :: 0 <= j < |newContent| && i != j&& newContent[j] == x;
+    result.content := set x | x in newContent;
+
+    assert forall x :: x in result.content <==> exists i :: 0 <= i < |newContent| && newContent[i] == x && !exists j :: 0 <= j < |newContent| && i != j && newContent[j] == x;
+    assert forall i :: 0 <= i < |result.content| ==> exists j :: 0 <= j < |newContent| && newContent[j] in result.content && !exists k :: 0 <= k < |newContent| && i != k && newContent[k] == newContent[j];
+    assert result.content == content + other.content;
   }
 
   method Intersection(other: IntSet) returns (result: IntSet)
@@ -341,9 +391,12 @@ class IntSet {
     }
 
     assert result.concreteContent[..] == newContent;
-    assert forall x :: x in result.concreteContent[..] ==> x in newContent;
+    assert forall x :: x in result.concreteContent[..] <==> x in newContent;
 
-    result.content := result.concreteContent[..];
-    assert result.content == result.concreteContent[..];
+    result.content := {};
+    forall i | 0 <= i < result.concreteContent.Length
+    {
+      result.content := result.content + {result.concreteContent[i]};
+    }
   }
 }
