@@ -1,3 +1,15 @@
+method Main()
+{
+  EmptyStateTest();
+  AddTest();
+  ContainsTest();
+  SizeTest();
+  IsEmptyTest();
+  RemoveIfPresentTest();
+  UnionTest();
+  IntersectionTest();
+}
+
 method EmptyStateTest()
 {
   var s := new IntSet();
@@ -137,9 +149,9 @@ predicate Unique(sequence: seq<int>)
   forall i, j :: 0 <= i < |sequence| && 0 <= j < |sequence| && i != j ==> sequence[i] != sequence[j]
 }
 
-  class IntSet {
+class IntSet
+{
   ghost var content: set<int>
-  
   var concreteContent: array<int>
 
   constructor ()
@@ -153,16 +165,6 @@ predicate Unique(sequence: seq<int>)
   {
     concreteContent := new int[0];
     content := {};
-  }
-
-  predicate IsValidIndex(sequence: seq<int>, index: int)
-  {
-    0 <= index < |sequence|
-  }
-
-  predicate IsValidIndexForArray(sequence: array<int>, index: int)
-  {
-    0 <= index < sequence.Length
   }
 
   ghost predicate Valid()
