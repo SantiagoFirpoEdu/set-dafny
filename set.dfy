@@ -1,85 +1,107 @@
-method Main()
+method EmptyStateTest()
 {
-  // var s := new IntSet();
-  // assert s.IsEmpty() == true;
-  // assert s.Size() == 0;
-  // s.Add(0);
-  // assert s.Size() == 1;
-  // s.Add(1);
-  // assert !s.Contains(2);
-  // assert s.Size() == 2;
-  // assert s.Contains(1);
-  // s.Add(2);
-  // s.Add(2);
-  // s.Add(2);
-  // s.Add(2);
-  // s.Add(2);
-  // assert s.Size() == 3;
-  // assert s.Contains(2);
-  // assert !s.Contains(3);
-  // s.RemoveIfPresent(2);
-  // assert s.Size() == 2;
-  // assert !s.Contains(2);
-  // assert !s.Contains(3);
-  // s.RemoveIfPresent(3);
-  // assert s.Size() == 2;
-  // assert !s.Contains(2);  
-  // s.RemoveIfPresent(2);
-  // assert s.Size() == 2;
-  // assert !s.Contains(2);
-  // assert !s.Contains(3);
-  // s.RemoveIfPresent(1);
-  // assert s.Size() == 1;
-  // assert !s.Contains(1);
-  // assert !s.Contains(2);
-  // s.RemoveIfPresent(0);
-  // assert s.Size() == 0;
-  // assert !s.Contains(0);
-  // s.Add(0);
-  // assert s.Size() == 1;
-  // assert s.Contains(0);
-  // s.Add(1);
-  // assert s.Size() == 2;
-  // assert s.Contains(0);
-  // assert s.Contains(1);
-  // s.Add(2);
-  // assert s.Size() == 3;
-  // assert s.Contains(0);
-  // assert s.Contains(1);
-  // assert s.Contains(2);
-  // var s2 := new IntSet();
-  // s2.Add(9);
-  // s2.Add(8);
-  // s2.Add(7);
-  // s2.Add(6);
-  // s2.Add(5);
-  var unionTest1 := new IntSet();
-  unionTest1.Add(1);
-  unionTest1.Add(2);
-  var unionTest2 := new IntSet();
-  unionTest2.Add(3);
-  unionTest2.Add(4);
-  var union := unionTest1.Union(unionTest2);
+  var s := new IntSet();
+  assert s.IsEmpty() == true;
+  assert s.Size() == 0;
+}
+
+method AddTest()
+{
+  var s := new IntSet();
+  s.Add(0);
+  assert s.Size() == 1;
+  s.Add(1);
+  assert !s.Contains(2);
+  assert s.Size() == 2;
+  assert s.Contains(1);
+  s.Add(2);
+  s.Add(2);
+  s.Add(2);
+  s.Add(2);
+  s.Add(2);
+  assert s.Size() == 3;
+  assert s.Contains(2);
+  assert !s.Contains(3);
+}
+
+method ContainsTest()
+{
+  var s := new IntSet();
+  s.Add(0);
+  s.Add(1);
+  s.Add(2);
+  assert s.Contains(0);
+  assert s.Contains(1);
+  assert s.Contains(2);
+  assert !s.Contains(3);
+}
+
+method SizeTest()
+{
+  var s := new IntSet();
+  s.Add(0);
+  s.Add(1);
+  s.Add(2);
+  assert s.Size() == 3;
+}
+
+method IsEmptyTest()
+{
+  var s := new IntSet();
+  assert s.IsEmpty() == true;
+  s.Add(0);
+  assert s.IsEmpty() == false;
+}
+
+method RemoveIfPresentTest()
+{
+  var s := new IntSet();
+  s.Add(0);
+  s.Add(1);
+  s.Add(2);
+  s.RemoveIfPresent(0);
+  assert s.Size() == 2;
+  assert !s.Contains(0);
+  s.RemoveIfPresent(1);
+  assert s.Size() == 1;
+  assert !s.Contains(1);
+  s.RemoveIfPresent(2);
+  assert s.Size() == 0;
+  assert !s.Contains(2);
+}
+
+method UnionTest()
+{
+  var s1 := new IntSet();
+  s1.Add(1);
+  s1.Add(2);
+  var s2 := new IntSet();
+  s2.Add(3);
+  s2.Add(4);
+  var union := s1.Union(s2);
   assert union.Contains(1);
   assert union.Contains(2);
   assert union.Contains(3);
   assert union.Contains(4);
   assert union.Size() == 4;
-  assert forall x :: x in union.content <==> x in unionTest1.content || x in unionTest2.content;
+  assert forall x :: x in union.content <==> x in s1.content || x in s2.content;
+}
 
-  var intersectionTest1 := new IntSet();
-  intersectionTest1.Add(2);
-  intersectionTest1.Add(3);
-  intersectionTest1.Add(4);
-  intersectionTest1.Add(5);
-  assert intersectionTest1.content == {2, 3, 4, 5};
-  var intersectionTest2 := new IntSet();
-  intersectionTest2.Add(2);
-  intersectionTest2.Add(3);
-  intersectionTest2.Add(4);
-  assert intersectionTest2.content == {2, 3, 4};
+method IntersectionTest()
+{
+  var s1 := new IntSet();
+  s1.Add(2);
+  s1.Add(3);
+  s1.Add(4);
+  s1.Add(5);
+  assert s1.content == {2, 3, 4, 5};
+  var s2 := new IntSet();
+  s2.Add(2);
+  s2.Add(3);
+  s2.Add(4);
+  assert s2.content == {2, 3, 4};
 
-  var intersection := intersectionTest1.Intersection(intersectionTest2);
+  var intersection := s1.Intersection(s2);
   assert intersection.content == {2, 3, 4};
   assert intersection.Size() == 3;
 }
@@ -298,11 +320,6 @@ predicate Unique(sequence: seq<int>)
 
     assert forall a :: old(Contains(a)) ==> a in old(content);
     assert forall a :: a in old(content) && a != x ==> a in newSeq;
-  }
-
-  function UniqueCount(a: seq<int>): nat
-  {
-    if |a| == 0 then 0 else if a[0] in a[1..] then 0 else 1 + UniqueCount(a[1..])
   }
 
   method Union(other: IntSet) returns (result: IntSet)
