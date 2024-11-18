@@ -1,3 +1,5 @@
+//Autores: Henrique Balejos Candaten, Lucas Alves Soares, Miguel Warken, Vitor Caús e Santiago Firpo
+
 method Main()
 {
   EmptyStateTest();
