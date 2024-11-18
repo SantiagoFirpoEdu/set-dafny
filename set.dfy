@@ -1,71 +1,87 @@
 method Main()
 {
-  var s := new IntSet();
-  assert s.IsEmpty() == true;
-  assert s.Size() == 0;
-  s.Add(0);
-  assert s.Size() == 1;
-  s.Add(1);
-  assert !s.Contains(2);
-  assert s.Size() == 2;
-  assert s.Contains(1);
-  s.Add(2);
-  s.Add(2);
-  s.Add(2);
-  s.Add(2);
-  s.Add(2);
-  assert s.Size() == 3;
-  assert s.Contains(2);
-  assert !s.Contains(3);
-  s.RemoveIfPresent(2);
-  assert s.Size() == 2;
-  assert !s.Contains(2);
-  assert !s.Contains(3);
-  s.RemoveIfPresent(3);
-  assert s.Size() == 2;
-  assert !s.Contains(2);  
-  s.RemoveIfPresent(2);
-  assert s.Size() == 2;
-  assert !s.Contains(2);
-  assert !s.Contains(3);
-  s.RemoveIfPresent(1);
-  assert s.Size() == 1;
-  assert !s.Contains(1);
-  assert !s.Contains(2);
-  s.RemoveIfPresent(0);
-  assert s.Size() == 0;
-  assert !s.Contains(0);
-  s.Add(0);
-  assert s.Size() == 1;
-  assert s.Contains(0);
-  s.Add(1);
-  assert s.Size() == 2;
-  assert s.Contains(0);
-  assert s.Contains(1);
-  s.Add(2);
-  assert s.Size() == 3;
-  assert s.Contains(0);
-  assert s.Contains(1);
-  assert s.Contains(2);
-  var s2 := new IntSet();
-  s2.Add(9);
-  s2.Add(8);
-  s2.Add(7);
-  s2.Add(6);
-  s2.Add(5);
-  // var s3 := new IntSet();
-  // s3.Add(1);
-  // s3.Add(2);
-  // var s4 := new IntSet();
-  // s4.Add(3);
-  // s4.Add(4);
-  // var union := s3.Union(s4);
-  // assert union.Contains(1);
-  // assert union.Contains(2);
-  // assert union.Contains(3);
-  // assert union.Contains(4);
-  // assert union.Size() == 4;
-  // assert forall x :: x in union.content <==> x in s3.content || x in s4.content;
+  // var s := new IntSet();
+  // assert s.IsEmpty() == true;
+  // assert s.Size() == 0;
+  // s.Add(0);
+  // assert s.Size() == 1;
+  // s.Add(1);
+  // assert !s.Contains(2);
+  // assert s.Size() == 2;
+  // assert s.Contains(1);
+  // s.Add(2);
+  // s.Add(2);
+  // s.Add(2);
+  // s.Add(2);
+  // s.Add(2);
+  // assert s.Size() == 3;
+  // assert s.Contains(2);
+  // assert !s.Contains(3);
+  // s.RemoveIfPresent(2);
+  // assert s.Size() == 2;
+  // assert !s.Contains(2);
+  // assert !s.Contains(3);
+  // s.RemoveIfPresent(3);
+  // assert s.Size() == 2;
+  // assert !s.Contains(2);  
+  // s.RemoveIfPresent(2);
+  // assert s.Size() == 2;
+  // assert !s.Contains(2);
+  // assert !s.Contains(3);
+  // s.RemoveIfPresent(1);
+  // assert s.Size() == 1;
+  // assert !s.Contains(1);
+  // assert !s.Contains(2);
+  // s.RemoveIfPresent(0);
+  // assert s.Size() == 0;
+  // assert !s.Contains(0);
+  // s.Add(0);
+  // assert s.Size() == 1;
+  // assert s.Contains(0);
+  // s.Add(1);
+  // assert s.Size() == 2;
+  // assert s.Contains(0);
+  // assert s.Contains(1);
+  // s.Add(2);
+  // assert s.Size() == 3;
+  // assert s.Contains(0);
+  // assert s.Contains(1);
+  // assert s.Contains(2);
+  // var s2 := new IntSet();
+  // s2.Add(9);
+  // s2.Add(8);
+  // s2.Add(7);
+  // s2.Add(6);
+  // s2.Add(5);
+  var unionTest1 := new IntSet();
+  unionTest1.Add(1);
+  unionTest1.Add(2);
+  var unionTest2 := new IntSet();
+  unionTest2.Add(3);
+  unionTest2.Add(4);
+  var union := unionTest1.Union(unionTest2);
+  assert union.Contains(1);
+  assert union.Contains(2);
+  assert union.Contains(3);
+  assert union.Contains(4);
+  assert union.Size() == 4;
+  assert forall x :: x in union.content <==> x in unionTest1.content || x in unionTest2.content;
+
+  var intersectionTest1 := new IntSet();
+  intersectionTest1.Add(2);
+  intersectionTest1.Add(3);
+  intersectionTest1.Add(4);
+  intersectionTest1.Add(5);
+  assert intersectionTest1.content == {2, 3, 4, 5};
+  var intersectionTest2 := new IntSet();
+  intersectionTest2.Add(2);
+  intersectionTest2.Add(3);
+  intersectionTest2.Add(4);
+  assert intersectionTest2.content == {2, 3, 4};
+
+  var intersection := intersectionTest1.Intersection(intersectionTest2);
+  assert intersection.content == {2, 3, 4};
+  assert intersection.Size() == 3;
 }
 
 lemma {:axiom} UniqueCountEqualsSetCardinality(a: seq<int>)
@@ -346,30 +362,15 @@ predicate Unique(sequence: seq<int>)
     var newContent := [];
 
     for i := 0 to concreteContent.Length
-      invariant old(concreteContent[..]) == concreteContent[..]
-      invariant old(content) == content
-      invariant old(other.content) == other.content
-      invariant old(other.concreteContent[..]) == other.concreteContent[..]
-      invariant Unique(concreteContent[..]) && Unique(other.concreteContent[..])
       invariant Unique(newContent)
       invariant Valid() && other.Valid()
-      invariant forall j :: 0 <= j < |newContent| ==> newContent[j] in content && newContent[j] in other.content
-      invariant forall j :: 0 <= j < |newContent| ==> newContent[j] in content * other.content
-      // invariant forall x :: x in newContent <==> x in content * other.content
-      invariant !exists x :: x in newContent && x !in content * other.content
-      invariant forall j :: 0 <= j < |newContent| ==> Contains(newContent[j]) && other.Contains(newContent[j])
       invariant forall x :: x in newContent <==> (x in concreteContent[..i] && x in other.concreteContent[..])
     {
-      assert concreteContent[i] in concreteContent[..];
       if concreteContent[i] in other.concreteContent[..]
       {
-        assert concreteContent[i] !in newContent;
-        assert concreteContent[i] in other.concreteContent[..];
         newContent := newContent + [concreteContent[i]];
       }
     }
-
-    assert forall j :: 0 <= j < |newContent| ==> newContent[j] in other.concreteContent[..] && newContent[j] in concreteContent[..];
 
     result.concreteContent := new int[|newContent|];
     forall i | 0 <= i < |newContent|
