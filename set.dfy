@@ -84,18 +84,24 @@ method Main()
   assert intersection.Size() == 3;
 }
 
-lemma {:axiom} UniqueCountEqualsSetCardinality(a: seq<int>)
-  requires Unique(a)
-  ensures |a| == |set x | x in a|
+function AsSet(sequence: seq<int>): set<int>
+  requires Unique(sequence)
 {
-  var s := set x | x in a;
-  if |a| == 0 {
-    assert |s| == |a|;
-  } else {
-    assert forall x :: x in a <==> x in s && !(exists i, j :: 0 <= i < |a| && 0 <= j < |a| && i != j && a[i] == a[j] && a[i] == x);
-    UniqueCountEqualsSetCardinality(a[1..]);
-    assume {:axiom} |s| == |a|;
-    assert |s| == |set x | x in a|;
+  set x | x in sequence
+}
+
+lemma UniqueCountEqualsSetCardinality(sequence: seq<int>)
+  requires Unique(sequence)
+  ensures |AsSet(sequence)| == |sequence|
+{
+  if sequence != []
+  {
+    assert AsSet(sequence) == {sequence[0]} + AsSet(sequence[1..]);
+    UniqueCountEqualsSetCardinality(sequence[1..]);
+  }
+  else
+  {
+    assert |AsSet(sequence)| == |sequence|;
   }
 }
 
@@ -312,7 +318,6 @@ predicate Unique(sequence: seq<int>)
     assert |newContent| == concreteContent.Length;
     assert newContent == concreteContent[..];
 
-
     assert forall x :: x in newContent <==> x in concreteContent[..];
 
     for i := 0 to |other.concreteContent[..]|
@@ -342,9 +347,7 @@ predicate Unique(sequence: seq<int>)
     assert Unique(result.concreteContent[..]);
     assert forall x :: x in result.concreteContent[..] ==> x in newContent;
 
-    // Establish that the sequence length equals the set cardinality
 
-    // Assign content and establish the final condition
     result.content := set x | x in newContent;
     assert forall x :: x in result.content <==> (exists i :: 0 <= i < |newContent| && newContent[i] == x && (!exists j :: 0 <= j < |newContent| && j != i && newContent[j] == x));
     UniqueCountEqualsSetCardinality(newContent);
