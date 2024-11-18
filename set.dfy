@@ -1,7 +1,7 @@
 method EmptyStateTest()
 {
   var s := new IntSet();
-  assert s.IsEmpty() == true;
+  assert s.IsEmpty();
   assert s.Size() == 0;
 }
 
@@ -48,9 +48,9 @@ method SizeTest()
 method IsEmptyTest()
 {
   var s := new IntSet();
-  assert s.IsEmpty() == true;
+  assert s.IsEmpty();
   s.Add(0);
-  assert s.IsEmpty() == false;
+  assert !s.IsEmpty();
 }
 
 method RemoveIfPresentTest()
@@ -62,6 +62,7 @@ method RemoveIfPresentTest()
   s.RemoveIfPresent(0);
   assert s.Size() == 2;
   assert !s.Contains(0);
+  s.RemoveIfPresent(1);
   s.RemoveIfPresent(1);
   assert s.Size() == 1;
   assert !s.Contains(1);
@@ -78,6 +79,7 @@ method UnionTest()
   var s2 := new IntSet();
   s2.Add(3);
   s2.Add(4);
+  s2.Add(4);
   var union := s1.Union(s2);
   assert union.Contains(1);
   assert union.Contains(2);
@@ -85,6 +87,7 @@ method UnionTest()
   assert union.Contains(4);
   assert union.Size() == 4;
   assert forall x :: x in union.content <==> x in s1.content || x in s2.content;
+  assert union.content == {1, 2, 3, 4};
 }
 
 method IntersectionTest()
