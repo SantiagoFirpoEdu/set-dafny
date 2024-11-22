@@ -4,10 +4,10 @@ method Main()
 {
   EmptyStateTest();
   AddTest();
+  RemoveIfPresentTest();
   ContainsTest();
   SizeTest();
   IsEmptyTest();
-  RemoveIfPresentTest();
   UnionTest();
   IntersectionTest();
 }
@@ -39,6 +39,24 @@ method AddTest()
   assert !s.Contains(3);
 }
 
+method RemoveIfPresentTest()
+{
+  var s := new IntSet();
+  s.Add(0);
+  s.Add(1);
+  s.Add(2);
+  s.RemoveIfPresent(0);
+  assert s.Size() == 2;
+  assert !s.Contains(0);
+  s.RemoveIfPresent(1);
+  s.RemoveIfPresent(1);
+  assert s.Size() == 1;
+  assert !s.Contains(1);
+  s.RemoveIfPresent(2);
+  assert s.Size() == 0;
+  assert !s.Contains(2);
+}
+
 method ContainsTest()
 {
   var s := new IntSet();
@@ -68,24 +86,6 @@ method IsEmptyTest()
   assert !s.IsEmpty();
 }
 
-method RemoveIfPresentTest()
-{
-  var s := new IntSet();
-  s.Add(0);
-  s.Add(1);
-  s.Add(2);
-  s.RemoveIfPresent(0);
-  assert s.Size() == 2;
-  assert !s.Contains(0);
-  s.RemoveIfPresent(1);
-  s.RemoveIfPresent(1);
-  assert s.Size() == 1;
-  assert !s.Contains(1);
-  s.RemoveIfPresent(2);
-  assert s.Size() == 0;
-  assert !s.Contains(2);
-}
-
 method UnionTest()
 {
   var s1 := new IntSet();
@@ -96,6 +96,9 @@ method UnionTest()
   s2.Add(4);
   s2.Add(4);
   var union := s1.Union(s2);
+  assert s1.content == {1, 2};
+  assert s2.content == {3, 4};
+
   assert union.Contains(1);
   assert union.Contains(2);
   assert union.Contains(3);
@@ -120,6 +123,8 @@ method IntersectionTest()
   assert s2.content == {2, 3, 4};
 
   var intersection := s1.Intersection(s2);
+  assert s1.content == {2, 3, 4, 5};
+  assert s2.content == {2, 3, 4};
   assert intersection.content == {2, 3, 4};
   assert intersection.Size() == 3;
 }
@@ -228,37 +233,6 @@ class IntSet
     assert !IsEmpty();
   }
 
-  function Contains(x: int): bool
-    reads this
-    reads concreteContent
-    requires Valid()
-    ensures Valid()
-    ensures Contains(x) <==> x in content && exists i :: 0 <= i < concreteContent.Length && concreteContent[i] == x && forall j :: 0 <= j < concreteContent.Length && j != i ==> concreteContent[j] != x
-  {
-    x in concreteContent[..]
-  }
-
-  function Size(): nat
-    reads this
-    reads concreteContent
-    requires Valid()
-    ensures Valid()
-    ensures Size() == |content|
-  {
-    concreteContent.Length
-  } 
-
-  function IsEmpty(): bool
-    reads this
-    reads concreteContent
-    requires Valid()
-    ensures Valid()
-    ensures IsEmpty() == (Size() == 0)
-    ensures IsEmpty() == (content == {})
-  {
-    concreteContent.Length == 0
-  }
-
   method RemoveIfPresent(x: int)
     requires Valid()
     ensures Valid()
@@ -328,6 +302,37 @@ class IntSet
 
     assert forall a :: old(Contains(a)) ==> a in old(content);
     assert forall a :: a in old(content) && a != x ==> a in newSeq;
+  }
+
+  function Contains(x: int): bool
+    reads this
+    reads concreteContent
+    requires Valid()
+    ensures Valid()
+    ensures Contains(x) <==> x in content && exists i :: 0 <= i < concreteContent.Length && concreteContent[i] == x && forall j :: 0 <= j < concreteContent.Length && j != i ==> concreteContent[j] != x
+  {
+    x in concreteContent[..]
+  }
+
+  function Size(): nat
+    reads this
+    reads concreteContent
+    requires Valid()
+    ensures Valid()
+    ensures Size() == |content|
+  {
+    concreteContent.Length
+  } 
+
+  function IsEmpty(): bool
+    reads this
+    reads concreteContent
+    requires Valid()
+    ensures Valid()
+    ensures IsEmpty() == (Size() == 0)
+    ensures IsEmpty() == (content == {})
+  {
+    concreteContent.Length == 0
   }
 
   method Union(other: IntSet) returns (result: IntSet)
