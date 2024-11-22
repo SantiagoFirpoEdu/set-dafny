@@ -17,6 +17,7 @@ method EmptyStateTest()
   var s := new IntSet();
   assert s.IsEmpty();
   assert s.Size() == 0;
+  assert !exists x :: x in s.content;
 }
 
 method AddTest()
