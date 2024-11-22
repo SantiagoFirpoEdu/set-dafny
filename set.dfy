@@ -123,7 +123,7 @@ method IntersectionTest()
   assert intersection.Size() == 3;
 }
 
-function AsSet(sequence: seq<int>): set<int>
+ghost function AsSet(sequence: seq<int>): set<int>
   requires Unique(sequence)
 {
   set x | x in sequence
